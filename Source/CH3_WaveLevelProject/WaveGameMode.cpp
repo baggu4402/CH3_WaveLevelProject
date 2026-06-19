@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
@@ -19,6 +20,7 @@ AWaveGameMode::AWaveGameMode()
 	GameStateClass = AWaveGameState::StaticClass();
 	CurrentLevelNumber = 1;
 	CurrentWaveIndex = 0;
+	bShowDebugMessages = false;
 
 	LevelNames.Add(TEXT("L_Level_01"));
 	LevelNames.Add(TEXT("L_Level_02"));
@@ -34,6 +36,8 @@ AWaveGameMode::AWaveGameMode()
 void AWaveGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	SetGameInputMode();
 
 	const FString MapName = GetWorld() ? GetWorld()->GetMapName() : FString();
 	if (MapName.Contains(TEXT("L_Level_01")))
@@ -103,7 +107,7 @@ void AWaveGameMode::StartWave()
 
 	const FString Message = FString::Printf(TEXT("Wave %d Start!"), CurrentWaveInfo.WaveNumber);
 	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
-	if (GEngine)
+	if (bShowDebugMessages && GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, Message);
 	}
@@ -137,7 +141,7 @@ void AWaveGameMode::EndWave()
 	{
 		if (WaveGameState->RemainingItemCount > 0)
 		{
-			WaveGameState->DamagePlayer(20.0f);
+			WaveGameState->DamagePlayer(50.0f);
 
 			if (UWaveGameInstance* WaveGameInstance = GetGameInstance<UWaveGameInstance>())
 			{
@@ -208,11 +212,12 @@ void AWaveGameMode::GameOver()
 	GetWorldTimerManager().ClearTimer(WaveTickTimerHandle);
 
 	UE_LOG(LogTemp, Warning, TEXT("Game Over"));
-	if (GEngine)
+	if (bShowDebugMessages && GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("Game Over"));
 	}
 
+	ShowGameOverMenu();
 	OnGameOver();
 }
 
@@ -222,11 +227,12 @@ void AWaveGameMode::GameClear()
 	GetWorldTimerManager().ClearTimer(WaveTickTimerHandle);
 
 	UE_LOG(LogTemp, Warning, TEXT("Game Clear"));
-	if (GEngine)
+	if (bShowDebugMessages && GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, TEXT("Game Clear"));
 	}
 
+	ShowGameClearMenu();
 	OnGameClear();
 }
 
@@ -311,4 +317,80 @@ void AWaveGameMode::RestoreRunDataFromGameInstance()
 	WaveGameState->Score = WaveGameInstance->GetTotalScore();
 	WaveGameState->MaxHP = WaveGameInstance->MaxHP;
 	WaveGameState->SetHP(WaveGameInstance->GetSavedHP());
+}
+
+void AWaveGameMode::ShowGameOverMenu()
+{
+	if (GameOverWidgetInstance)
+	{
+		SetMenuInputMode();
+		return;
+	}
+
+	if (!GameOverWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameOverWidgetClass is not set."));
+		return;
+	}
+
+	GameOverWidgetInstance = CreateWidget<UUserWidget>(GetWorld(), GameOverWidgetClass);
+	if (!GameOverWidgetInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to create GameOver widget."));
+		return;
+	}
+
+	GameOverWidgetInstance->AddToViewport();
+	SetMenuInputMode();
+}
+
+void AWaveGameMode::ShowGameClearMenu()
+{
+	if (GameClearWidgetInstance)
+	{
+		SetMenuInputMode();
+		return;
+	}
+
+	if (!GameClearWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameClearWidgetClass is not set."));
+		return;
+	}
+
+	GameClearWidgetInstance = CreateWidget<UUserWidget>(GetWorld(), GameClearWidgetClass);
+	if (!GameClearWidgetInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to create GameClear widget."));
+		return;
+	}
+
+	GameClearWidgetInstance->AddToViewport();
+	SetMenuInputMode();
+}
+
+void AWaveGameMode::SetMenuInputMode()
+{
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	FInputModeUIOnly InputMode;
+	PlayerController->SetInputMode(InputMode);
+	PlayerController->bShowMouseCursor = true;
+}
+
+void AWaveGameMode::SetGameInputMode()
+{
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	FInputModeGameOnly InputMode;
+	PlayerController->SetInputMode(InputMode);
+	PlayerController->bShowMouseCursor = false;
 }

@@ -71,6 +71,21 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "UI")
 	TObjectPtr<UUserWidget> HUDWidgetInstance;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> GameOverWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> GameClearWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> GameOverWidgetInstance;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> GameClearWidgetInstance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+	bool bShowDebugMessages;
+
 	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Wave")
@@ -109,6 +124,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game Flow")
 	void ResetRunData();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowGameOverMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowGameClearMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void SetMenuInputMode();
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Game")
 	void OnGameOver();
 
@@ -119,5 +143,6 @@ protected:
 	FTimerHandle WaveTimerHandle;
 	FTimerHandle WaveTickTimerHandle;
 
+	void SetGameInputMode();
 	void RestoreRunDataFromGameInstance();
 };
