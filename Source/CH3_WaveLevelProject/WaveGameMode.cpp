@@ -3,7 +3,9 @@
 
 #include "WaveGameMode.h"
 #include "SpawnVolume.h"
+#include "WaveGameInstance.h"
 #include "WaveGameState.h"
+#include "Blueprint/UserWidget.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -51,6 +53,8 @@ void AWaveGameMode::BeginPlay()
 
 	InitDefaultWaves();
 	FindSpawnVolume();
+	RestoreRunDataFromGameInstance();
+	CreateHUD();
 	StartWave();
 }
 
@@ -134,6 +138,11 @@ void AWaveGameMode::EndWave()
 		if (WaveGameState->RemainingItemCount > 0)
 		{
 			WaveGameState->DamagePlayer(20.0f);
+
+			if (UWaveGameInstance* WaveGameInstance = GetGameInstance<UWaveGameInstance>())
+			{
+				WaveGameInstance->SetSavedHP(WaveGameState->CurrentHP);
+			}
 		}
 
 		if (WaveGameState->IsPlayerDead())
@@ -179,6 +188,12 @@ void AWaveGameMode::HandleItemCollected()
 	}
 
 	WaveGameState->AddScore(10);
+	if (UWaveGameInstance* WaveGameInstance = GetGameInstance<UWaveGameInstance>())
+	{
+		WaveGameInstance->AddScore(10);
+		WaveGameState->Score = WaveGameInstance->GetTotalScore();
+	}
+
 	WaveGameState->DecreaseRemainingItemCount();
 
 	if (WaveGameState->RemainingItemCount <= 0)
@@ -235,4 +250,65 @@ void AWaveGameMode::FindSpawnVolume()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SpawnVolume was not found in the level."));
 	}
+}
+
+void AWaveGameMode::CreateHUD()
+{
+	if (HUDWidgetInstance)
+	{
+		return;
+	}
+
+	if (!HUDWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HUDWidgetClass is not set."));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HUD could not be created because World is invalid."));
+		return;
+	}
+
+	HUDWidgetInstance = CreateWidget<UUserWidget>(World, HUDWidgetClass);
+	if (!HUDWidgetInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Failed to create HUD widget."));
+		return;
+	}
+
+	HUDWidgetInstance->AddToViewport();
+}
+
+void AWaveGameMode::ResetRunData()
+{
+	UWaveGameInstance* WaveGameInstance = GetGameInstance<UWaveGameInstance>();
+	if (WaveGameInstance)
+	{
+		WaveGameInstance->ResetRunData();
+	}
+
+	AWaveGameState* WaveGameState = GetGameState<AWaveGameState>();
+	if (WaveGameState)
+	{
+		WaveGameState->Score = 0;
+		WaveGameState->MaxHP = WaveGameInstance ? WaveGameInstance->MaxHP : WaveGameState->MaxHP;
+		WaveGameState->SetHP(WaveGameState->MaxHP);
+	}
+}
+
+void AWaveGameMode::RestoreRunDataFromGameInstance()
+{
+	UWaveGameInstance* WaveGameInstance = GetGameInstance<UWaveGameInstance>();
+	AWaveGameState* WaveGameState = GetGameState<AWaveGameState>();
+	if (!WaveGameInstance || !WaveGameState)
+	{
+		return;
+	}
+
+	WaveGameState->Score = WaveGameInstance->GetTotalScore();
+	WaveGameState->MaxHP = WaveGameInstance->MaxHP;
+	WaveGameState->SetHP(WaveGameInstance->GetSavedHP());
 }

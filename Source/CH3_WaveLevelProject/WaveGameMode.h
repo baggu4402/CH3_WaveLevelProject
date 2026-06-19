@@ -8,6 +8,7 @@
 #include "WaveGameMode.generated.h"
 
 class ASpawnVolume;
+class UUserWidget;
 
 USTRUCT(BlueprintType)
 struct FWaveInfo
@@ -64,6 +65,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
 	TArray<FName> LevelNames;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> HUDWidgetClass;
+
+	UPROPERTY(BlueprintReadOnly, Category = "UI")
+	TObjectPtr<UUserWidget> HUDWidgetInstance;
+
 	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Wave")
@@ -96,6 +103,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spawn")
 	void FindSpawnVolume();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void CreateHUD();
+
+	UFUNCTION(BlueprintCallable, Category = "Game Flow")
+	void ResetRunData();
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Game")
 	void OnGameOver();
 
@@ -105,4 +118,6 @@ public:
 protected:
 	FTimerHandle WaveTimerHandle;
 	FTimerHandle WaveTickTimerHandle;
+
+	void RestoreRunDataFromGameInstance();
 };
